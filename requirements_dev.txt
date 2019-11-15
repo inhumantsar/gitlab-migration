@@ -1,0 +1,12 @@
+bumpversion
+coverage
+nox
+pip
+pylint
+pytest
+pytest-runner
+Sphinx
+tox
+twine
+watchdog
+wheel
