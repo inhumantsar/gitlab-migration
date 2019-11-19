@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import os
 import shutil
 import re
 import subprocess
@@ -42,7 +43,7 @@ def migrate_repo(url, target_base_url, target_group, token):
     shutil.rmtree(tmpdir)
 
 
-def update_local_repo(path, target_base_url, target_group, token):
+def update_local_repo(path, old_base_url, target_base_url, target_group, set_as_origin):
     '''
     this will update a local repo with a new origin, saving the old origin with the remote name "old"
     
@@ -50,10 +51,20 @@ def update_local_repo(path, target_base_url, target_group, token):
     '''
     repo = Repo(path)
     old_remote = repo.remotes.origin
+    if old_base_url not in old_remote.url:
+        print(f'SKIPPING: Old base URL not present in origin URL for {path}')
+        return
+
     new_url = _get_new_repo_url(old_remote.url, target_base_url, target_group)
-    repo.create_remote("old", url=old_remote.url)
-    repo.delete_remote(origin)
-    repo.create_remote('origin', url=new_url)
+    if set_as_origin:
+        if "old" in [r.name for r in repo.remotes]:
+            print(f"SKIPPING: A remote named 'old' already exists for {_get_repo_name_from_url(old_remote.url)}")
+        else:
+            repo.create_remote("old", url=old_remote.url)
+        repo.delete_remote(old_remote)
+        repo.create_remote('origin', url=new_url)
+    else:
+        repo.create_remote('new', url=new_url)
 
 
 def get_project_urls(gitlab_url, token):
@@ -113,6 +124,10 @@ def _get_repo_name_from_url(url):
 
 
 def _get_new_repo_url(old_url, target_base_url, target_group):
+    if target_base_url.startswith('git@') and target_base_url[-1] != ':':
+        target_base_url = f"{target_base_url}:" 
+    if target_base_url.startswith('https://') and target_base_url[-1] != '/':
+        target_base_url = f"{target_base_url}/" 
     return f"{target_base_url}{target_group}/{_get_repo_name_from_url(old_url)}.git"
 
 

@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """Console script for gitlab_migration."""
+import os
 import sys
+
 import click
 
 from gitlab_migration import gitlab_migration as glm
@@ -46,6 +48,17 @@ def to_csv(csv, gitlab_url, token):
     csv.writelines([f"{url},\n" for url in glm.get_project_urls(gitlab_url, token)])
     click.echo("Done.")
 
+@projects.command()
+@click.argument('path', type=click.STRING)
+@click.argument('new_base_url', type=click.STRING)
+@click.argument('old_base_url', type=click.STRING)
+@click.argument('target_group', type=click.STRING)
+@click.option('set_as_origin', '--set-as-origin/--set-as-new', default=True)
+def update_local(path, new_base_url, old_base_url, target_group, set_as_origin):
+    for child_path in os.listdir(path):
+        if os.path.isdir(child_path) and os.path.isdir(f"{child_path}/.git"):
+            glm.update_local_repo(child_path, old_base_url, new_base_url, target_group, set_as_origin)
+
 
 @cli.group()
 def variables():
@@ -73,6 +86,7 @@ def migrate(src_group, target_group, src_gitlab_url, target_gitlab_url, src_toke
 
     for var in glm.get_group_vars(src_gitlab_url, src_token, src_group_id):
         glm.create_group_var(target_gitlab_url, target_token, var, target_group_id)
+
 
 if __name__ == "__main__":
     sys.exit(cli())  # pragma: no cover
